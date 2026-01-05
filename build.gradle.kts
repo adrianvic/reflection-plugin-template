@@ -4,7 +4,10 @@ plugins {
 }
 
 group = "com.example"
-version = System.getenv("YOURPLUGIN_VERSION_NAME") ?: "unknown"
+version = System.getenv("VERSION") ?: "unknown"
+
+val buildEnv = System.getenv("YOURPLUGIN_BUILD_CHANNEL")
+    ?: if (System.getenv("JITPACK") != null) "jitpack" else "local"
 
 repositories {
     mavenCentral()
@@ -14,6 +17,7 @@ repositories {
 /* ----------------------------------------- */
 /*            SUPPORTED VERSIONS             */
 /* ----------------------------------------- */
+/* Make a folder with the same name in 'src'.*/
 
 val mcVersions = listOf(
         "b1_7_3",
@@ -75,18 +79,37 @@ mcVersions.forEach { ver ->
         from(sourceSets[ver].output)
         archiveClassifier.set(ver)
 
+
         manifest {
             attributes(
-                "yourplugin-Impl-Version" to ver,
-                "yourplugin-Environment" to (System.getenv("YOURPLUGIN_BUILD_CHANNEL") ?: "dev")
+                "Implemented-Version" to ver,
+                "Build-Environment" to buildEnv
             )
         }
-
     }
 }
 
 tasks.register("buildAll") {
     dependsOn(tasks.withType<Jar>())
+}
+
+tasks.register<Jar>("bundleAll") {
+    from(sourceSets["main"].output)
+    mcVersions.forEach { ver ->
+        from(sourceSets[ver].output)
+    }
+
+    // This is kinda gross and, essentially, we shouldn't have it here...
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    archiveClassifier.set("all-implementations")
+    archiveVersion.set(project.version.toString())
+
+    manifest {
+        attributes(
+            "Implemented-Versions" to mcVersions.joinToString(",")
+        )
+    }
 }
 
 /* ----------------------------------------- */
